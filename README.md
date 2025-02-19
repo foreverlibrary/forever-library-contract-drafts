@@ -2,7 +2,7 @@
 
 Forever Library is a shared public good for all artists to mint and preserve their music onchain.
 
-It is simply meant to be an open NFT minting contract, which anyone can utilize regardless of liveness of a particular front end.
+It is simply meant to be an open ERC-721 NFT minting contract, which anyone can utilize regardless of liveness of a particular front end.
 
 The primary tenets of this contract include:
 Non-Upgradeable - it is meant to serve as steady and long-term bedrock for minting front-ends, marketplaces, and indexers to utilize and build upon.
