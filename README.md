@@ -11,3 +11,6 @@ Immutable metadata - tokens are meant to be a permanent statement. Future edits 
 Optimzed for provenance - helping artists establish a future proof onchain provenance trail is a key goal of Forever Library.
 
 All feedback and suggestions are welcome and encouraged!
+
+Follow Forever Library on Twitter/X - https://x.com/forever_library
+Join our Discord community - https://discord.com/invite/YmNGme7D8p
