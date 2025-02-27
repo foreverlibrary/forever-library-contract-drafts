@@ -1,0 +1,166 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
+
+interface IExternalRenderer {
+    function tokenURI(uint256 tokenId) external view returns (string memory);
+}
+
+/// @title Forever Library
+/// @notice A fully immutable, non-upgradeable NFT contract with open minting and permanent metadata.
+contract ForeverLibrary is ERC721, ReentrancyGuard {
+    using Strings for uint256;
+
+    // Immutable contract configuration
+    string public _baseTokenURI;
+    string public constant VERSION = "1.0.0";
+    address public immutable CREATOR;
+
+    // Gas optimized counter
+    uint256 private _currentTokenId;
+
+    // Optimized struct packing (Now includes creator)
+    struct MintData {
+        address creator;       // 20 bytes
+        uint64 timestamp;      // 8 bytes
+        uint64 blockNumber;    // 8 bytes
+        bytes32 metadataHash;  // 32 bytes
+        string tokenURI;       // dynamic
+    }
+
+    // State mappings
+    mapping(uint256 => MintData) private _mintData;
+    mapping(uint256 => uint256) public mintTimestamp; // Track minting timestamps for immutability enforcement
+
+    // External metadata renderer settings
+    mapping (uint => bool) public usesExternalRenderer;
+    mapping (uint => address) public externalRendererAddresses;
+
+    // Events
+    event TokenMinted(
+        address indexed creator,
+        uint256 indexed tokenId,
+        address indexed minter,
+        string tokenURI,
+        bytes32 metadataHash,
+        bytes32 contentHash,
+        uint256 timestamp,
+        uint256 blockNumber
+    );
+
+    // Custom errors
+    error EmptyURI();
+    error TokenDoesNotExist();
+    error URITooLong();
+    error EtherNotAccepted();
+
+    constructor(
+        string memory name,
+        string memory symbol,
+        string memory baseURI
+    ) ERC721(name, symbol) {
+        // Input validation
+        if (bytes(baseURI).length == 0) revert EmptyURI();
+        if (bytes(baseURI).length > 2048) revert URITooLong();
+
+        // Set immutable values
+        _baseTokenURI = baseURI;
+        CREATOR = msg.sender;
+        
+        // Start token IDs at 1
+        _currentTokenId = 1;
+    }
+
+    modifier onlyCreator() {
+        require(msg.sender == CREATOR, "Only contract creator can call this");
+        _;
+    }
+
+    function _exists(uint tokenId) internal view returns (bool) {
+        return tokenId < _currentTokenId;
+    }
+
+    function mint(
+        string calldata finalTokenURI,
+        bytes32 contentHash
+    ) external nonReentrant {
+        // Validate input
+        if (bytes(finalTokenURI).length == 0) revert EmptyURI();
+        if (bytes(finalTokenURI).length > 2048) revert URITooLong();
+
+        // Get current token ID and increment
+        uint256 tokenId = _currentTokenId;
+        unchecked {
+            _currentTokenId++;
+        }
+
+        // Store mint data with timestamp
+        _mintData[tokenId] = MintData({
+            creator: msg.sender,
+            timestamp: uint64(block.timestamp),
+            blockNumber: uint64(block.number),
+            metadataHash: keccak256(bytes(finalTokenURI)),
+            tokenURI: finalTokenURI
+        });
+
+        mintTimestamp[tokenId] = block.timestamp; // Store the minting time
+
+        // Mint NFT
+        _safeMint(msg.sender, tokenId);
+
+        // Emit event including contentHash
+        emit TokenMinted(
+            msg.sender,
+            tokenId,
+            msg.sender,
+            finalTokenURI,
+            keccak256(bytes(finalTokenURI)),
+            contentHash,
+            block.timestamp,
+            block.number
+        );
+    }
+
+    function setExternalRenderer(address renderer, uint256 tokenId) external onlyCreator {
+        require(renderer != address(0), "Invalid renderer address");
+        require(block.timestamp <= mintTimestamp[tokenId] + 24 hours, "Metadata locked after 24 hours");
+        externalRendererAddresses[tokenId] = renderer;
+    }
+
+    function toggleExternalRenderer(bool enabled, uint256 tokenId) external onlyCreator {
+        require(block.timestamp <= mintTimestamp[tokenId] + 24 hours, "Metadata locked after 24 hours");
+        usesExternalRenderer[tokenId] = enabled;
+    }
+
+    function tokenURI(uint256 tokenId) 
+        public 
+        view 
+        override 
+        returns (string memory) 
+    {
+        if (!_exists(tokenId)) revert TokenDoesNotExist();
+
+        // Use external renderer if enabled and within the 24-hour window
+        if (usesExternalRenderer[tokenId]) {
+            return IExternalRenderer(externalRendererAddresses[tokenId]).tokenURI(tokenId);
+        } 
+        else {
+        // Default stored metadata URI (immutable after 24 hours)
+        string memory baseURI = _baseURI();
+        return bytes(baseURI).length > 0 ? 
+            string(abi.encodePacked(baseURI, _mintData[tokenId].tokenURI)) : 
+            _mintData[tokenId].tokenURI;
+        }
+    }
+
+    receive() external payable {
+        revert EtherNotAccepted();
+    }
+
+    fallback() external payable {
+        revert EtherNotAccepted();
+    }
+}
