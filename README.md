@@ -10,6 +10,8 @@ Publicly mintable - all can utilize this contract openly.
 Immutable metadata - tokens are meant to be a permanent statement. Future edits should be done with newly minted tokens, burning previous immutable tokens.
 Optimzed for provenance - helping artists establish a future proof onchain provenance trail is a key goal of Forever Library.
 
+This contract features an external rendering toggle as well, which can be utilized for minting code-based work.
+
 All feedback and suggestions are welcome and encouraged!
 
 Follow Forever Library on Twitter/X - https://x.com/forever_library
