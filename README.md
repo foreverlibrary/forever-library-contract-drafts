@@ -1,4 +1,6 @@
-# ForeverLibrary-NFT
+# forever-library-contract-drafts
+
+(this was our original repository for early drafts of the Forever Library smart contract)
 
 Forever Library is a shared public good for all artists to mint and preserve their music onchain.
 
